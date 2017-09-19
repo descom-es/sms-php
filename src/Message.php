@@ -64,6 +64,16 @@ class Message
     }
 
     /**
+     * Get the "text" of the message.
+     *
+     * @return string
+     */
+    public function getText()
+    {
+        return $this->text;
+    }
+
+    /**
      * Set the "senderID" of the message.
      *
      * @param string $senderID
@@ -89,8 +99,8 @@ class Message
             'to'           => $this->destinations,
         ];
 
-        if (isset($senderID) && $senderID) {
-            $response['senderID'] = $senderID;
+        if (isset($this->senderID) && $this->senderID) {
+            $response['senderID'] = $this->senderID;
         }
 
         return $response;

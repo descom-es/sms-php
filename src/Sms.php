@@ -26,6 +26,13 @@ class Sms
     private $dryrun = false;
 
     /**
+     * Define if text must be sanitize to GSM 7bits.
+     *
+     * @var bool
+     */
+    private $sanitize = false;
+
+    /**
      * Define if then messages for sent.
      *
      * @var array
@@ -59,6 +66,20 @@ class Sms
     }
 
     /**
+     * Set if text must be sanitize to GSM 7bits.
+     *
+     * @param bool $sanitize
+     *
+     * @return $this
+     */
+    public function setSanitize($sanitize)
+    {
+        $this->sanitize = $sanitize;
+
+        return $this;
+    }
+
+    /**
      * Add a message in sent.
      *
      * @param \Descom\Sms\Message $message
@@ -67,9 +88,11 @@ class Sms
      */
     public function addMessage(Message $message)
     {
+        $message_text = $message->getText();
+
         foreach ($this->messages as $cur_message) {
-            if ($cur_message->text == $message->text) {
-                throw new MessageTextAlreadyExits($message->text);
+            if ($cur_message->getText() == $message_text) {
+                throw new MessageTextAlreadyExits($message_text);
             }
         }
 
@@ -139,6 +162,9 @@ class Sms
             $data['dryrun'] = true;
         }
 
+        if (isset($this->sanitize) && $this->sanitize) {
+            $data['sanitize'] = true;
+        }
         $response = $http->sendHttp('POST', 'sms/send', $this->headers, $data);
 
         $this->messages = [];
