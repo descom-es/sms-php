@@ -19,11 +19,32 @@ class Sms
     ];
 
     /**
+     * Define the app and version of client.
+     *
+     * @var string
+     */
+    private $app = 'php-sms v1.0.10';
+
+    /**
      * Define if then sent is dryrun.
      *
      * @var bool
      */
     private $dryrun = false;
+
+    /**
+     * Define if text must be sanitize to GSM 7bits.
+     *
+     * @var bool
+     */
+    private $sanitize = false;
+
+    /**
+     * Define if the sender no must be force in server.
+     *
+     * @var bool
+     */
+    private $sender_not_force = false;
 
     /**
      * Define if then messages for sent.
@@ -42,6 +63,28 @@ class Sms
     public function __construct(Auth $auth)
     {
         $this->headers = array_merge($this->headers, $auth->headers());
+
+        $this->headers = array_merge($this->headers, [
+            'DSMS-App' => $this->app,
+        ]);
+    }
+
+    /**
+     * Set the app and version of client.
+     *
+     * @param string $app
+     *
+     * @var string
+     */
+    public function setApp($app)
+    {
+        $this->app = $app;
+
+        $this->headers = array_merge($this->headers, [
+            'DSMS-App' => $this->app,
+        ]);
+
+        return $this;
     }
 
     /**
@@ -59,17 +102,50 @@ class Sms
     }
 
     /**
-     * Add a message in sent.
+     * Set if text must be sanitize to GSM 7bits.
      *
-     * @param \Descom\Sms\Message $message
+     * @param bool $sanitize
      *
      * @return $this
      */
-    public function addMessage(Message $message)
+    public function setSanitize($sanitize)
     {
-        foreach ($this->messages as $cur_message) {
-            if ($cur_message->text == $message->text) {
-                throw new MessageTextAlreadyExits($message->text);
+        $this->sanitize = $sanitize;
+
+        return $this;
+    }
+
+    /**
+     * Set if sender no must be force in server.
+     *
+     * @param bool $sanitize
+     *
+     * @return $this
+     */
+    public function setSenderNotForce($sender_not_force)
+    {
+        $this->sender_not_force = $sender_not_force;
+
+        return $this;
+    }
+
+    /**
+     * Add a message in sent.
+     *
+     * @param \Descom\Sms\Message $message
+     * @param bool                $control
+     *
+     * @return $this
+     */
+    public function addMessage(Message $message, $control = true)
+    {
+        $message_text = $message->getText();
+
+        if ($control) {
+            foreach ($this->messages as $cur_message) {
+                if ($cur_message->getText() == $message_text) {
+                    throw new MessageTextAlreadyExits($message_text);
+                }
             }
         }
 
@@ -103,11 +179,17 @@ class Sms
      *
      * @return array
      */
-    public function getSenderID()
+    public function getSenderID($details = false)
     {
         $http = new Http();
 
-        $response = $http->sendHttp('GET', 'senderID', $this->headers);
+        if ($details) {
+            $response = $http->sendHttp('POST', 'senderID', $this->headers, [
+                'details' => 1,
+            ]);
+        } else {
+            $response = $http->sendHttp('GET', 'senderID', $this->headers);
+        }
 
         if ($response->status == 200) {
             $data = json_decode($response->message);
@@ -133,15 +215,24 @@ class Sms
 
         foreach ($this->messages as $message) {
             $data['messages'][] = $message->getArray();
+            $message->clean();
         }
+
+        $this->messages = [];
 
         if (isset($this->dryrun) && $this->dryrun) {
             $data['dryrun'] = true;
         }
 
-        $response = $http->sendHttp('POST', 'sms/send', $this->headers, $data);
+        if (isset($this->sanitize) && $this->sanitize) {
+            $data['sanitize'] = true;
+        }
 
-        $this->messages = [];
+        if (isset($this->sender_not_force) && $this->sender_not_force) {
+            $data['sender_not_force'] = true;
+        }
+
+        $response = $http->sendHttp('POST', 'sms/send', $this->headers, $data);
 
         if ($response->status == 200) {
             return json_decode($response->message);

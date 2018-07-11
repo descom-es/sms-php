@@ -31,15 +31,16 @@ class Message
      * Set the "destination" of the message.
      *
      * @param string|array $to
+     * @param bool         $control
      *
      * @return $this
      */
-    public function addTo($to)
+    public function addTo($to, $control = true)
     {
         $destinations = (array) $to;
 
         foreach ($destinations as $destination) {
-            if (in_array($destinations, $this->destinations)) {
+            if ($control && in_array($destinations, $this->destinations)) {
                 throw DestinationAlreadyExits::create($destination);
             } else {
                 $this->destinations[] = $destination;
@@ -64,6 +65,16 @@ class Message
     }
 
     /**
+     * Get the "text" of the message.
+     *
+     * @return string
+     */
+    public function getText()
+    {
+        return $this->text;
+    }
+
+    /**
      * Set the "senderID" of the message.
      *
      * @param string $senderID
@@ -73,6 +84,20 @@ class Message
     public function setsenderID($senderID)
     {
         $this->senderID = $senderID;
+
+        return $this;
+    }
+
+    /**
+     * Clean class data.
+     *
+     * @return $this
+     */
+    public function clean()
+    {
+        $this->text = '';
+        $this->destinations = [];
+        $this->senderID = '';
 
         return $this;
     }
@@ -89,8 +114,8 @@ class Message
             'to'           => $this->destinations,
         ];
 
-        if (isset($senderID) && $senderID) {
-            $response['senderID'] = $senderID;
+        if (isset($this->senderID) && $this->senderID) {
+            $response['senderID'] = $this->senderID;
         }
 
         return $response;
