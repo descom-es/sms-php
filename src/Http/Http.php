@@ -2,7 +2,9 @@
 
 namespace Descom\Sms\Http;
 
-use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\RequestException;
 
 class Http
 {
@@ -20,16 +22,30 @@ class Http
      */
     public function sendHttp($verb, $path, array $headers, array $data = [])
     {
-        $version = (string) ClientInterface::VERSION;
+        $client = new Client(['base_uri' => 'https://api.descomsms.com/api/']);
+        $response = new Response();
 
-        if ($version[0] === '6') {
-            $sms = new GuzzleV6();
+        $httpData = [
+            'headers'   => $headers,
+            'debug'     => $this->debug,
+        ];
 
-            return $sms->sendHttp($verb, $path, $headers, $data);
-        } elseif ($version[0] === '5') {
-            $sms = new GuzzleV5();
-
-            return $sms->sendHttp($verb, $path, $headers, $data);
+        if (count($data) > 0) {
+            $httpData['json'] = $data;
         }
+
+        try {
+            $result = $client->request($verb, $path, $httpData);
+            $response->status = $result->getStatusCode();
+            $response->message = $result->getBody()->getContents();
+        } catch (ClientException $e) {
+            $response->status = $e->getResponse()->getStatusCode();
+            $response->message = $e->getResponse()->getBody(true);
+        } catch (RequestException $e) {
+            $response->status = 500;
+            $response->message = $e->getMessage();
+        }
+
+        return $response;
     }
 }
